@@ -1,0 +1,100 @@
+version: '2'
+
+services:
+  gitlab:
+    image: 'gitlab/gitlab-ce:latest'
+    restart: always
+    hostname: 'git.dorgam.it'
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'http://git.dorgam.it/'
+        gitlab_rails['gitlab_shell_ssh_port'] = 2222
+        gitlab_rails['lfs_enabled'] = true
+        # Add any other gitlab.rb configuration here, each on its own line
+    ports:
+      - "80:80"
+      - "443:443"
+      - "2222:22"
+    expose:
+      - "3000"
+      - "80"
+      - "443"
+      - "22"
+    volumes:
+      - ./gitlab/config:/etc/gitlab
+      - ./gitlab/logs:/var/log/gitlab
+      - ./gitlab/data:/var/opt/gitlab
+    networks:
+      - chatops
+
+  mongo:
+    image: mongo:3.2
+    volumes:
+     - ./db/data:/data/db
+     - ./db/dump:/dump
+    command: mongod --smallfiles --oplogSize 128 --replSet rs0
+    networks:
+      - chatops
+
+  mongo-init-replica:
+    image: mongo:3.2
+    command: 'mongo mongo/rocketchat --eval "rs.initiate({ _id: ''rs0'', members: [ { _id: 0, host: ''localhost:27017'' } ]})"'
+    links:
+      - mongo:mongo
+
+  rocketchat:
+    image: rocketchat/rocket.chat:latest
+    hostname: 'chat.dorgam.it'
+    volumes:
+      - ./rocketchat/uploads:/app/uploads
+    environment:
+      - PORT=3000
+      - ROOT_URL=http://chat.dorgam.it:3000
+      - MONGO_URL=mongodb://mongo:27017/rocketchat
+      - MONGO_OPLOG_URL=mongodb://mongo:27017/local
+      - MAIL_URL=smtp://smtp.google.com
+    links:
+      - mongo:mongo
+      - gitlab:gitlab
+    ports:
+      - 3000:3000
+    expose:
+      - "3000"
+    networks:
+      - chatops
+# Set user password in rocketchat chat before init Hubot. Here we are using the rocket.cat user, with password 'bot'
+# You also need to create the bot room in ROCKETCHAT_ROOM
+  hubot:
+    image: rocketchat/hubot-rocketchat:latest
+    environment:
+      - ROCKETCHAT_URL=rocketchat:3000
+      - ROCKETCHAT_ROOM=devops
+      - ROCKETCHAT_USER=rocket.cat
+      - ROCKETCHAT_PASSWORD=bot
+      - ROCKETCHAT_AUTH=password # ldap | password
+      - BOT_NAME=Rocket.Cat
+      - LISTEN_ON_ALL_PUBLIC=true
+      - EXTERNAL_SCRIPTS=hubot-help,hubot-seen,hubot-links,hubot-diagnostics,hubot-gitsy,hubot-trello,hubot-gitlab-agile
+# hubot-trello needs its variables to run, if you do not wish to use it, just remove it from EXTERNAL_SCRIPTS
+      - HUBOT_TRELLO_KEY=
+      - HUBOT_TRELLO_TOKEN=
+      - HUBOT_TRELLO_BOARD=
+# GITLAB_URL is the name of the gitlab container, no need to change this variable
+      - GITLAB_URL=http://gitlab/api/v3/
+# Both API_KEY AND TOCKEN are the same, the GitLab Private Token or App Access Token.
+      - GITLAB_API_KEY=""
+      - GITLAB_TOKEN=
+      - GITLAB_RECORD_LIMIT=100
+    links:
+      - rocketchat:rocketchat
+      - gitlab:gitlab
+    volumes:
+      - ./hubot/scripts:/home/hubot/scripts
+    ports:
+      - 3001:8080
+    networks:
+      - chatops
+
+networks:
+  chatops:
+    driver: bridge
