@@ -1,28 +1,28 @@
 # ChatOps with Rocket.Chat
 ## Inspired in Gitlab: "From Idea to Production"
 
-We've all got pretty amazed with the Gitlabs Idea to Production demonstration. But the stack they used, well, let's just say that it could be better. So we took the challenge and prepared this tutorial, with a much cooler stack to take your ideas to production, with Gitlab, Rocket.Chat and Hubot, all packed inside  Docker containers.
+We've all got pretty amazed with the Gitlabs Idea to Production demonstration, and we felt inspired by doing the same, so we took the challenge and prepared this tutorial, with a different stack, to take your ideas to production, with Gitlab, Rocket.Chat and Hubot, all packed in a nice Docker containers stack.
 
-Let's call it:
+Maybe we can call it...
 
 ##Chat, code and ship ideas to production
 
-Let's take a look to this stack first, we will be running the following services containers:
+Let's take a look to this stack first, so you understand what we will be running in the following services containers:
 
 - Gitlab CE (latest)  
 - Rocket.Chat (latest)  
 - MongoDB (3.2)
 - Hubot-RocketChat (latest)
-- Gitlab-Runner (latest with Dockerfile)
+- Gitlab-Runner (latest with Dockerfile modifications)
 - Nginx (latest as a reverse proxy)
 
 ## How does it work?
 
 First we need to setup our environments, and if it's your first time running it, you should follow this instructions carefully, so we can get everything connected.
 
-After that, to bring it all up, you'll just need to enter in the directory and run the command:
+If you've already done these steps, just go inside your directory, in terminal, and type:
 
-``` 
+```
 docker-compose up -d
 ```
 
@@ -31,35 +31,37 @@ To stop all services:
 ```
 docker-compose stop
 ```
+
 ### GITLAB CE
 
 In our docker-compose.yml, adjust the following variables:
 
-```javascript
+```yaml
       GITLAB_OMNIBUS_CONFIG: |
-        external_url 'http://git.dorgam.it/' 
+        external_url 'http://git.dorgam.it/'
         gitlab_rails['gitlab_shell_ssh_port'] = 22
         gitlab_rails['lfs_enabled'] = true
         nginx['listen_port'] = 8081
 
 ```
 You should set your external domain url, and leave the others.
- 
+
 >INFO: because we can't have more than one container lintening in the same port number, our services will be all listening in different ports, and we will let a NGINX reverse proxy take care of the rest.
 
 Then set your volumes to make sure your data will be persisted:
 
-```javascript
+```yaml
     volumes:
       - ./gitlab/config:/etc/gitlab
       - ./gitlab/logs:/var/log/gitlab
       - ./gitlab/data:/var/opt/gitlab
 ```
+
 If your docker installation accepts your working directory as a volume, you can use the relative path.
 
 And then we create a common shared network so the containers can communicate to each other. We will set a static ipv4 address, so we can use in others containers hosts files:  
 
-```javascript
+```yaml
     networks:
       devops:
         ipv4_address: 172.20.0.4
@@ -69,6 +71,7 @@ Now, you should just enter in terminal, and type inside this directory:
 
 ```
 docker-compose up -d gitlab
+
 docker logs -f chatops_gitlab_1
 ```
 
@@ -81,7 +84,7 @@ This is actually the most trick part, we know we shoudn't put two services insid
 
 So, you will find in docker-compose.yml:
 
-```javascript
+```yaml
   runner:
     build: ./gitlab/runner/
     hostname: "runner"
@@ -106,26 +109,26 @@ We've set a env variable `GITLAB_HOST=gitlab:8081`, using the service name as ur
 
 Let's go to the terminal and build our runner:
 
-```
+```shell
 docker-compose build runner
 
 ```
 
 If everything goes well, just put it up:
 
-```
+```shell
 docker-compose up -d runner
 ```
 
-Once the runner's container is up, you need to register it in your gitlab. Go at the runners page of your gitlab project and copy the token to the `-r` option, then we will put your external url domain inside the /etc/hosts file so the runner knows where your git repository is, and then register your runner:
+Once the runner's container is up, you need to register it in your gitlab. Go at the runners page of your gitlab project and copy the token to the `-r` option, then we will put your external url domain inside the `/etc/hosts` file so the runner knows where your git repository is, and then register your runner:
 
 ```shell
 docker exec -it chatops_runner_1 /bin/bash -c "echo '172.20.0.10     git.dorgam.it' >> /etc/hosts"
 
-docker exec -it chatops_runner_1 /usr/bin/gitlab-runner register -u http://gitlab:8081/ci -r BwU14yBJbnJjTv_uYaX8 --name "server runner" --executor shell --tag-list homolog,production --non-interactive
+docker exec -it chatops_runner_1 /usr/bin/gitlab-runner register -u http://gitlab:8081/ci -r BwU14yBJTbnJjX8 --name "server runner" --executor shell --tag-list homolog,production --non-interactive
 ```
 
-> TIP: You can also set a volume for the /etc/hosts file, so it will be persisted in your host machine. 
+> TIP: You can also set a volume for the /etc/hosts file, so it will be persisted in your host machine.
 
 
 > EXPLAIN: docker exec -it [name-of-container] [command]  
@@ -134,8 +137,8 @@ docker exec -it chatops_runner_1 /usr/bin/gitlab-runner register -u http://gitla
 A message like this should appear:
 
 ```
-Registering runner... succeeded                     runner=BwU14yBJ  
-Runner registered successfully. Feel free to start it, but if it's running already the config should be automatically reloaded! 
+Registering runner... succeeded                     runner=8e641b0b    
+Runner registered successfully. Feel free to start it, but if it's running already the config should be automatically reloaded!
 ```
 
 You can check if your runner is communicating by going to the Gitalabs Runner's page.
@@ -145,7 +148,7 @@ You can check if your runner is communicating by going to the Gitalabs Runner's 
 
 First start mongodb container, then we need to start mongo-init-replica, so mongodb turns into a replica set primary server. In the terminal:
 
-```
+```shell
 docker-compose up -d mongo
 ```
 
@@ -153,17 +156,17 @@ docker-compose up -d mongo
 
 When it's done, run:
 
-```
+```shell
 docker-compose up -d mongo-init-replica
 ```
 
-This will initiate the replicaset configuration, and exit the container. 
+This will initiate the replicaset configuration, and exit the container.
 
 ### Rocket.Chat
 
 To put Rocket.Chat up you just need to set the environment variables `PORT` and `ROOT_URL` and run it:
 
-```javascript
+```yaml
   rocketchat:
     image: rocketchat/rocket.chat:latest
     hostname: 'rocketchat'
@@ -196,13 +199,13 @@ Run:
 docker-compose up -d rocketchat
 ```
 
-Now go register your Rocket.Chat Admin user, by http://chat.dorgam.it:3000/, and **create a user and a channel for the bot.** 
+Now go register your Rocket.Chat Admin user, by http://chat.dorgam.it:3000/, and **create a user and a channel for the bot.**
 
 ### Hubot
 
 Hubot is our framework for building bots, my favorite actually, here you can set a lot of params, just keep in mind that most of hubots scripts crashes if they don't find their environment variables, so be carefull when configuring these:
 
-```javascript
+```yaml
 
   hubot:
     image: rocketchat/hubot-rocketchat:latest
@@ -240,7 +243,7 @@ In the `./hubot/scripts` folder we can persist hubots scripts, there is a lot of
 
 Save your changes and run:
 
-```
+```shell
 docker-compose up -d hubot
 ```
 
@@ -252,7 +255,7 @@ So as we've said before, docker containers can't connect to the same port simult
 
 The NGINX configuration file is persisted in `./nginx/chatops.conf`, and you should change the domain names if you want.
 
-```javascript
+```nginx
 upstream chat{
   ip_hash;
   server rocketchat:3000;
@@ -333,8 +336,8 @@ server {
 
 Just save your changes and:
 
-```javascript
-docchatops_ker-compose up -d nginx
+```shell
+docker-compose up -d nginx
 ```
 
 When you change these confs, remember to reload then into NGINX:
@@ -592,7 +595,7 @@ As you can see, in Rocket.Chat even the integrations are full open sourced, you 
 
 Save your integration and test it with curl, using some gitlab webhook json, like this:
 
-```
+```shell
 curl -X POST -H "x-gitlab-event: Pipeline Hook" --data-urlencode 'payload={   "object_kind": "pipeline",   "object_attributes":{      "id": 31,      "ref": "master",      "tag": false,      "sha": "bcbb5ec396a2c0f828686f14fac9b80b780504f2",      "before_sha": "bcbb5ec396a2c0f828686f14fac9b80b780504f2",      "status": "success",      "stages":[         "build",         "test",         "deploy"      ],      "created_at": "2016-08-12 15:23:28 UTC",      "finished_at": "2016-08-12 15:26:29 UTC",      "duration": 63   },   "user":{      "name": "Administrator",      "username": "root",      "avatar_url": "http://www.gravatar.com/avatar/e32bd13e2add097461cb96824b7a829c?s=80\u0026d=identicon"   },   "project":{      "name": "Gitlab Test",      "description": "Atque in sunt eos similique dolores voluptatem.",      "web_url": "http://192.168.64.1:3005/gitlab-org/gitlab-test",      "avatar_url": null,      "git_ssh_url": "git@192.168.64.1:gitlab-org/gitlab-test.git",      "git_http_url": "http://192.168.64.1:3005/gitlab-org/gitlab-test.git",      "namespace": "Gitlab Org",      "visibility_level": 20,      "path_with_namespace": "gitlab-org/gitlab-test",      "default_branch": "master"   },   "commit":{      "id": "bcbb5ec396a2c0f828686f14fac9b80b780504f2",      "message": "test",      "timestamp": "2016-08-12T17:23:21+02:00",      "url": "http://example.com/gitlab-org/gitlab-test/commit/bcbb5ec396a2c0f828686f14fac9b80b780504f2",      "author":{         "name": "User",         "email": "user@gitlab.com"      }   },   "builds":[      {         "id": 380,         "stage": "deploy",         "name": "production",         "status": "skipped",         "created_at": "2016-08-12 15:23:28 UTC",         "started_at": null,         "finished_at": null,         "when": "manual",         "manual": true,         "user":{            "name": "Administrator",            "username": "root",            "avatar_url": "http://www.gravatar.com/avatar/e32bd13e2add097461cb96824b7a829c?s=80\u0026d=identicon"         },         "runner": null,         "artifacts_file":{            "filename": null,            "size": null         }      },      {         "id": 377,         "stage": "test",         "name": "test-image",         "status": "success",         "created_at": "2016-08-12 15:23:28 UTC",         "started_at": "2016-08-12 15:26:12 UTC",         "finished_at": null,         "when": "on_success",         "manual": false,         "user":{            "name": "Administrator",            "username": "root",            "avatar_url": "http://www.gravatar.com/avatar/e32bd13e2add097461cb96824b7a829c?s=80\u0026d=identicon"         },         "runner": null,         "artifacts_file":{            "filename": null,            "size": null         }      },      {         "id": 378,         "stage": "test",         "name": "test-build",         "status": "success",         "created_at": "2016-08-12 15:23:28 UTC",         "started_at": "2016-08-12 15:26:12 UTC",         "finished_at": "2016-08-12 15:26:29 UTC",         "when": "on_success",         "manual": false,         "user":{            "name": "Administrator",            "username": "root",            "avatar_url": "http://www.gravatar.com/avatar/e32bd13e2add097461cb96824b7a829c?s=80\u0026d=identicon"         },         "runner": null,         "artifacts_file":{            "filename": null,            "size": null         }      },      {         "id": 376,         "stage": "build",         "name": "build-image",         "status": "success",         "created_at": "2016-08-12 15:23:28 UTC",         "started_at": "2016-08-12 15:24:56 UTC",         "finished_at": "2016-08-12 15:25:26 UTC",         "when": "on_success",         "manual": false,         "user":{            "name": "Administrator",            "username": "root",            "avatar_url": "http://www.gravatar.com/avatar/e32bd13e2add097461cb96824b7a829c?s=80\u0026d=identicon"         },         "runner": null,         "artifacts_file":{            "filename": null,            "size": null         }      },      {         "id": 379,         "stage": "deploy",         "name": "staging",         "status": "created",         "created_at": "2016-08-12 15:23:28 UTC",         "started_at": null,         "finished_at": null,         "when": "on_success",         "manual": false,         "user":{            "name": "Administrator",            "username": "root",            "avatar_url": "http://www.gravatar.com/avatar/e32bd13e2add097461cb96824b7a829c?s=80\u0026d=identicon"         },         "runner": null,         "artifacts_file":{            "filename": null,            "size": null         }      }   ]}' http://chat.dorgam.it/hooks/7H6ridRv6n8wgfNvb/yPfDX488gXTstQCWN3BQYjjLEyN3BQYjjLEyAN3BQYjjLEyZoj
 ```
 
