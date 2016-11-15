@@ -11,10 +11,6 @@ services:
         gitlab_rails['gitlab_shell_ssh_port'] = 22
         gitlab_rails['lfs_enabled'] = true
         nginx['listen_port'] = 8081
-        # Add any other gitlab.rb configuration here, each on its own line
-        #gitlab_rails['trusted_proxies'] = [ "0.0.0.0/24", nginx ]
-        # nginx['listen_addresses'] = ['127.0.0.1', "[::1]"]
-
     ports:
       - "8081:8081"
       - "4443:443"
@@ -37,6 +33,7 @@ services:
 
   runner:
     build: ./gitlab/runner/
+    image: dorgamit/gitlab-runner:latest
     hostname: "runner"
     restart: "always"
     volumes:
@@ -106,13 +103,10 @@ services:
       - ROCKETCHAT_AUTH=password
       - BOT_NAME=Rocket.Cat
       - LISTEN_ON_ALL_PUBLIC=true
-      - EXTERNAL_SCRIPTS=hubot-help,hubot-seen,hubot-links,hubot-diagnostics,hubot-gitsy,hubot-trello,hubot-gitlab-agile
-      - HUBOT_TRELLO_KEY=b32aec03ca503cf217d4b5663b8c2c26
-      - HUBOT_TRELLO_TOKEN=e96951db497b6df8fe16cd708cbb219d6e750e349bf9fb5e0c6527e84cf61b39
-      - HUBOT_TRELLO_BOARD=WGNudKGg
+      - EXTERNAL_SCRIPTS=hubot-help,hubot-seen,hubot-links,hubot-diagnostics,hubot-gitsy,hubot-gitlab-agile
       - GITLAB_URL=http://gitlab/api/v3/
-      - GITLAB_API_KEY="cNhsExCCvkqDiPVbLEnx"
-      - GITLAB_TOKEN=cNhsExCCvkqDiPVbLEnx
+      - GITLAB_API_KEY="cNhsExCcNhsExicNhsExx"
+      - GITLAB_TOKEN=cNhsExCcNhsExicNhsExx
       - GITLAB_RECORD_LIMIT=100
 
     links:
@@ -120,9 +114,9 @@ services:
       - gitlab:gitlab
     volumes:
       - ./hubot/scripts:/home/hubot/scripts
-  # this is used to expose the hubot port for notifications on the host on port 3001, e.g. for hubot-jenkins-notifier
     ports:
       - 3001:3001
+    # this is used to expose the hubot port for notifications on the host on port 3001, e.g. for hubot-jenkins-notifier
     networks:
       devops:
         ipv4_address: 172.20.0.9
