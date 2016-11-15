@@ -1,0 +1,9 @@
+concurrent = 1
+check_interval = 0
+
+[[runners]]
+  name = "production"
+  url = "http://git.dorgam.it/ci"
+  token = "215edb5c6c7f6a6853536232c7a04d"
+  executor = "shell"
+  [runners.cache]
