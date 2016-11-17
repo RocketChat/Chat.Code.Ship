@@ -103,8 +103,8 @@ services:
       - ROCKETCHAT_AUTH=password
       - BOT_NAME=Rocket.Cat
       - LISTEN_ON_ALL_PUBLIC=true
-      - EXTERNAL_SCRIPTS=hubot-help,hubot-seen,hubot-links,hubot-diagnostics,hubot-gitsy,hubot-gitlab-agile
       - GITLAB_URL=http://gitlab/api/v3/
+      - EXTERNAL_SCRIPTS=hubot-help,hubot-seen,hubot-links,hubot-diagnostics,hubot-rocketchat-gitlab
       - GITLAB_API_KEY="cNhsExCcNhsExicNhsExx"
       - GITLAB_TOKEN=cNhsExCcNhsExicNhsExx
       - GITLAB_RECORD_LIMIT=100
